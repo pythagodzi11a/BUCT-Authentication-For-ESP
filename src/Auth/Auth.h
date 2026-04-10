@@ -15,6 +15,8 @@ namespace Auth {
 
     std::pair<bool, String> isOnline();
 
+    std::pair<bool, String> loginWithPlainPassword(const String &username, const String &password);
+
     std::pair<bool, String> login(const String &username, const String &password_param,
                                   const String &ip, const String &CHKSUM, const String &info);
 

@@ -2,24 +2,47 @@
 
 #include "Auth/Auth.h"
 
-const char* ssid = "抽刀断牛刀两段";
-const char* password = "cddndldadnnsgz";
+const char *ssid = "";
+const char *password = "";
+const char *portalUser = "";
+const char *portalPass = "";
+
+
+unsigned long lastCheckMs = 0;
+const unsigned long checkIntervalMs = 30000; // 30s
+
+void ensureWiFi() {
+    if (WiFi.status() == WL_CONNECTED) return;
+    WiFi.begin(ssid, password);
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+        delay(300);
+    }
+}
+
+
+void ensurePortal() {
+    const std::pair<bool, String> onlineResult = Auth::isOnline();
+    const bool online = onlineResult.first;
+    if (online) return;
+
+    const std::pair<bool, String> loginResult = Auth::loginWithPlainPassword(portalUser, portalPass);
+    const bool ok = loginResult.first;
+    const String msg = loginResult.second;
+    Serial.print("Portal relogin: ");
+    Serial.println(ok ? "OK" : msg);
+}
 
 void setup() {
-// write your initialization code here
     Serial.begin(115200);
-    pinMode(LED_BUILTIN, OUTPUT);
-    WiFi.begin(ssid,password);
-    while (WiFiClass::status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-    delay(5000);
-    Auth::isOnline();
+    ensureWiFi();
+    ensurePortal();
 }
 
 void loop() {
-// write your code here
-    Serial.println("");
-    delay(5000);
+    if (millis() - lastCheckMs >= checkIntervalMs) {
+        lastCheckMs = millis();
+        ensureWiFi();
+        ensurePortal();
+    }
 }

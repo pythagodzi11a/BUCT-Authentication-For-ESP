@@ -29,6 +29,41 @@ namespace Auth {
     WiFiClient tcpClient;
     HttpClient client(tcpClient, BASE_URL, 80);
 
+    std::pair<bool, String> loginWithPlainPassword(const String &username, const String &password) {
+        if (username.isEmpty() || password.isEmpty()) {
+            return std::make_pair(false, "Empty username or password");
+        }
+
+        const std::pair<bool, String> onlineState = isOnline();
+        const String ip = onlineState.second;
+        if (ip.isEmpty() || ip.startsWith("Failed")) {
+            return std::make_pair(false, "Failed to get client IP");
+        }
+
+        const String challenge = getChallenge(username, ip);
+        if (challenge.isEmpty()) {
+            return std::make_pair(false, "Failed to get challenge");
+        }
+
+        const String passwordParam = buildPasswordParam(password, challenge);
+        if (!passwordParam.startsWith("{MD5}") || passwordParam.length() <= 5) {
+            return std::make_pair(false, "Failed to build password param");
+        }
+
+        const String hmd5 = passwordParam.substring(5);
+        const String info = buildInfo(username.c_str(), password.c_str(), ip.c_str(), challenge.c_str());
+        if (info.isEmpty()) {
+            return std::make_pair(false, "Failed to build info");
+        }
+
+        const String chksum = buildChksum(challenge, username, hmd5, "20", ip, "200", "1", info);
+        if (chksum.isEmpty()) {
+            return std::make_pair(false, "Failed to build chksum");
+        }
+
+        return login(username, passwordParam, ip, chksum, info);
+    }
+
     std::pair<bool, String> isOnline() {
         char target_url[128];
         sprintf(target_url, "/cgi-bin/rad_user_info?callback=callback&_=%s", String(millis()).c_str());
@@ -104,11 +139,11 @@ namespace Auth {
 
     std::pair<bool, String> login(const String &username, const String &password_param,
                                   const String &ip, const String &CHKSUM, const String &info) {
-        const String usernameEnc = URLEncoder.encode(username);
-        const String passwordEnc = URLEncoder.encode(password_param);
-        const String infoEnc = URLEncoder.encode(info);
-        const String osEnc = URLEncoder.encode("Windows 95");
-        const String nameEnc = URLEncoder.encode("Windows");
+        const String usernameEnc = URLEncoderClass::encode(username);
+        const String passwordEnc = URLEncoderClass::encode(password_param);
+        const String infoEnc = URLEncoderClass::encode(info);
+        const String osEnc = URLEncoderClass::encode("Windows 95");
+        const String nameEnc = URLEncoderClass::encode("Windows");
         const String ts = String(millis());
         const char *loginPathFormat =
                 "/cgi-bin/srun_portal?"
