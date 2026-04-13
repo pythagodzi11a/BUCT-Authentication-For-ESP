@@ -10,7 +10,7 @@
 #include <new>
 
 namespace {
-    String toHexLower(const uint8_t *data, size_t len) {
+    String toHexLower(const uint8_t *data, const size_t len) {
         static const char *hex = "0123456789abcdef";
         String out;
         out.reserve(len * 2);
@@ -60,7 +60,7 @@ namespace {
         return out;
     }
 
-    inline uint32_t charAtSafe(const uint8_t *msg, const size_t msgLen, const size_t idx) {
+    uint32_t charAtSafe(const uint8_t *msg, const size_t msgLen, const size_t idx) {
         return (idx < msgLen) ? static_cast<uint32_t>(msg[idx]) : 0u;
     }
 
@@ -77,7 +77,7 @@ namespace {
 
         const size_t vCoreLen = (pLen + 3) / 4;
         const size_t vLen = vCoreLen + 1;
-        std::unique_ptr<uint32_t[]> v(new (std::nothrow) uint32_t[vLen]());
+        std::unique_ptr<uint32_t[]> v(new(std::nothrow) uint32_t[vLen]());
         if (!v) return nullptr;
 
         for (size_t i = 0, j = 0; j < vCoreLen; i += 4, ++j) {
@@ -90,7 +90,7 @@ namespace {
 
         const size_t kCoreLen = (keyLen + 3) / 4;
         const size_t kLen = (kCoreLen < 4) ? 4 : kCoreLen;
-        std::unique_ptr<uint32_t[]> kk(new (std::nothrow) uint32_t[kLen]());
+        std::unique_ptr<uint32_t[]> kk(new(std::nothrow) uint32_t[kLen]());
         if (!kk) {
             return nullptr;
         }
@@ -131,7 +131,7 @@ namespace {
         }
 
         outLen = vLen * 4;
-        std::unique_ptr<uint8_t[]> out(new (std::nothrow) uint8_t[outLen]);
+        std::unique_ptr<uint8_t[]> out(new(std::nothrow) uint8_t[outLen]);
         if (!out) {
             outLen = 0;
             return nullptr;
@@ -156,10 +156,10 @@ namespace Auth {
         if (!mdInfo) return "";
 
         int ret = mbedtls_md_hmac(
-                mdInfo,
-                reinterpret_cast<const unsigned char *>(challenge.c_str()), challenge.length(),
-                reinterpret_cast<const unsigned char *>(plainPassword.c_str()), plainPassword.length(),
-                hmacOut
+            mdInfo,
+            reinterpret_cast<const unsigned char *>(challenge.c_str()), challenge.length(),
+            reinterpret_cast<const unsigned char *>(plainPassword.c_str()), plainPassword.length(),
+            hmacOut
         );
         if (ret != 0) return "";
 
@@ -215,4 +215,3 @@ namespace Auth {
         return toHexLower(shaOut, 20);
     }
 }
-
