@@ -15,5 +15,5 @@ namespace Auth {
 
     std::pair<bool, String> login(const String &username,
                                   const String &password,
-                                  const String &system = "Windows 95");
+                                  const String &system = "ESP-Auto");
 }

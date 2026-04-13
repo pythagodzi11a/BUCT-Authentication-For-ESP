@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <WiFi.h>
-
 #include "Auth.h"
 
 const char *ssid = "";
