@@ -3,20 +3,10 @@
 //
 
 #include "Auth.h"
+#include "InternalHex.h"
 #include "mbedtls/md.h"
 
 namespace {
-    String toHexLower(const uint8_t *data, size_t len) {
-        static const char *hex = "0123456789abcdef";
-        String out;
-        out.reserve(len * 2);
-        for (size_t i = 0; i < len; i++) {
-            out += hex[(data[i] >> 4) & 0x0F];
-            out += hex[data[i] & 0x0F];
-        }
-        return out;
-    }
-
     // 计算登录参数 password = "{MD5}" + HMAC_MD5(challenge, plainPassword)
 }
 
@@ -35,6 +25,6 @@ namespace Auth {
         );
         if (ret != 0) return "";
 
-        return "{MD5}" + toHexLower(hmacOut, 16);
+        return "{MD5}" + AuthInternal::toHexLower(hmacOut, 16);
     }
 }

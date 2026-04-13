@@ -6,6 +6,19 @@
 #include <ArduinoJson.h>
 #include <URLEncoder.h>
 
+namespace Auth {
+    String buildPasswordParam(const String &plainPassword, const String &challenge);
+    String buildInfo(const char *username, const char *password, const char *ip, const char *challenge);
+    String buildChksum(const String &challenge,
+                       const String &username,
+                       const String &hmd5,
+                       const String &acId,
+                       const String &ip,
+                       const String &n,
+                       const String &type,
+                       const String &info);
+}
+
 namespace {
     /**
      *
@@ -23,13 +36,101 @@ namespace {
 
         return false;
     }
+
+    String getChallenge(const String &username, const String &ip) {
+        const String usernameEnc = URLEncoder.encode(username);
+        const String ts = String(millis());
+        char target_url[128];
+        const int n = snprintf(target_url, sizeof(target_url),
+                               "/cgi-bin/get_challenge?username=%s&ip=%s&callback=%s&_=%s",
+                               usernameEnc.c_str(), ip.c_str(), ts.c_str(), ts.c_str());
+        if (n < 0 || n >= (int) sizeof(target_url)) return "";
+        Auth::client.get(target_url);
+
+        String response = Auth::client.responseBody();
+        if (!extractJson(response)) return "";
+
+        JsonDocument json;
+        const DeserializationError error = deserializeJson(json, response);
+        if (error) {
+            Serial.print("Failed to parse JSON: ");
+            Serial.println(error.c_str());
+            return "";
+        }
+
+        return json["challenge"];
+    }
+
+    std::pair<bool, String> performPortalLogin(const String &username,
+                                                const String &passwordParam,
+                                                const String &ip,
+                                                const String &chksum,
+                                                const String &info,
+                                                const String &system) {
+        const String usernameEnc = URLEncoderClass::encode(username);
+        const String passwordEnc = URLEncoderClass::encode(passwordParam);
+        const String infoEnc = URLEncoderClass::encode(info);
+        const String osEnc = URLEncoderClass::encode(system);
+        const String nameEnc = URLEncoderClass::encode("Windows");
+        const String ts = String(millis());
+        const char *loginPathFormat =
+                "/cgi-bin/srun_portal?"
+                "callback=%s"
+                "&action=login"
+                "&username=%s"
+                "&password=%s"
+                "&ac_id=20"
+                "&ip=%s"
+                "&chksum=%s"
+                "&info=%s"
+                "&n=200"
+                "&type=1"
+                "&os=%s"
+                "&name=%s"
+                "&double_stack=0"
+                "&_=%s";
+        char target_url[1024];
+        const int n = snprintf(target_url, sizeof(target_url),
+                               loginPathFormat,
+                               "callback", usernameEnc.c_str(), passwordEnc.c_str(), ip.c_str(), chksum.c_str(),
+                               infoEnc.c_str(), osEnc.c_str(), nameEnc.c_str(), ts.c_str());
+        if (n < 0 || n >= (int) sizeof(target_url)) {
+            return std::make_pair(false, "URL too long");
+        }
+
+        Auth::client.get(target_url);
+        String response = Auth::client.responseBody();
+        if (extractJson(response)) {
+            JsonDocument json;
+            const DeserializationError error = deserializeJson(json, response);
+            if (error) {
+                Serial.print("Failed to parse JSON: ");
+                Serial.println(error.c_str());
+                return std::make_pair(false, "Failed to parse JSON");
+            }
+
+            const String res = json["res"];
+            const String ecode = json["ecode"];
+
+            if (res == "ok") {
+                return std::make_pair(true, res.c_str());
+            }
+
+            if (ecode == "E2901") {
+                return std::make_pair(false, "Incorrect password");
+            }
+        }
+        return std::make_pair(false, response.c_str());
+    }
 }
 
 namespace Auth {
     WiFiClient tcpClient;
     HttpClient client(tcpClient, BASE_URL, 80);
 
-    std::pair<bool, String> loginWithPlainPassword(const String &username, const String &password) {
+    std::pair<bool, String> login(const String &username,
+                                  const String &password,
+                                  const String &system) {
         if (username.isEmpty() || password.isEmpty()) {
             return std::make_pair(false, "Empty username or password");
         }
@@ -61,7 +162,7 @@ namespace Auth {
             return std::make_pair(false, "Failed to build chksum");
         }
 
-        return login(username, passwordParam, ip, chksum, info);
+        return performPortalLogin(username, passwordParam, ip, chksum, info, system);
     }
 
     std::pair<bool, String> isOnline() {
@@ -106,92 +207,5 @@ namespace Auth {
         Serial.println("Failed to extract JSON from response");
         return std::make_pair(false, "Failed to extract JSON");
     }
-
-
-    String getChallenge(const String &username, const String &ip) {
-        const String usernameEnc = URLEncoder.encode(username);
-        const String ts = String(millis());
-        char target_url[128];
-        const int n = snprintf(target_url, sizeof(target_url),
-                               "/cgi-bin/get_challenge?username=%s&ip=%s&callback=%s&_=%s",
-                               usernameEnc.c_str(), ip.c_str(), ts.c_str(), ts.c_str());
-        if (n < 0 || n >= (int)sizeof(target_url)) return "";
-        client.get(target_url);
-
-        String response = client.responseBody();
-        if (extractJson(response)) {
-            JsonDocument json;
-            const DeserializationError error = deserializeJson(json, response);
-
-            if (error) {
-                Serial.print("Failed to parse JSON: ");
-                Serial.println(error.c_str());
-                return "";
-            }
-
-            const String challenge = json["challenge"];
-            return challenge;
-        }
-
-        return "";
-    }
-
-
-    std::pair<bool, String> login(const String &username, const String &password_param,
-                                  const String &ip, const String &CHKSUM, const String &info) {
-        const String usernameEnc = URLEncoderClass::encode(username);
-        const String passwordEnc = URLEncoderClass::encode(password_param);
-        const String infoEnc = URLEncoderClass::encode(info);
-        const String osEnc = URLEncoderClass::encode("Windows 95");
-        const String nameEnc = URLEncoderClass::encode("Windows");
-        const String ts = String(millis());
-        const char *loginPathFormat =
-                "/cgi-bin/srun_portal?"
-                "callback=%s"
-                "&action=login"
-                "&username=%s"
-                "&password=%s"
-                "&ac_id=20"
-                "&ip=%s"
-                "&chksum=%s"
-                "&info=%s"
-                "&n=200"
-                "&type=1"
-                "&os=%s"
-                "&name=%s"
-                "&double_stack=0"
-                "&_=%s";
-        char target_url[1024];
-        const int n = snprintf(target_url, sizeof(target_url),
-                               loginPathFormat,
-                               "callback", usernameEnc.c_str(), passwordEnc.c_str(), ip.c_str(), CHKSUM.c_str(),
-                               infoEnc.c_str(), osEnc.c_str(), nameEnc.c_str(), ts.c_str());
-        if (n < 0 || n >= (int)sizeof(target_url)) {
-            return std::make_pair(false, "URL too long");
-        }
-
-        client.get(target_url);
-        String response = client.responseBody();
-        if (extractJson(response)) {
-            JsonDocument json;
-            const DeserializationError error = deserializeJson(json, response);
-            if (error) {
-                Serial.print("Failed to parse JSON: ");
-                Serial.println(error.c_str());
-                return std::make_pair(false, "Failed to parse JSON");
-            }
-
-            const String res = json["res"];
-            const String ecode = json["ecode"];
-
-            if (res == "ok") {
-                return std::make_pair(true, res.c_str());
-            }
-
-            if (ecode == "E2901") {
-                return std::make_pair(false, "Incorrect password");
-            }
-        }
-        return std::make_pair(false, response.c_str());
-    }
 }
+

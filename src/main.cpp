@@ -1,6 +1,7 @@
 #include <Arduino.h>
+#include <WiFi.h>
 
-#include "Auth/Auth.h"
+#include "Auth.h"
 
 const char *ssid = "";
 const char *password = "";
@@ -26,7 +27,7 @@ void ensurePortal() {
     const bool online = onlineResult.first;
     if (online) return;
 
-    const std::pair<bool, String> loginResult = Auth::loginWithPlainPassword(portalUser, portalPass);
+    const std::pair<bool, String> loginResult = Auth::login(portalUser, portalPass);
     const bool ok = loginResult.first;
     const String msg = loginResult.second;
     Serial.print("Portal relogin: ");

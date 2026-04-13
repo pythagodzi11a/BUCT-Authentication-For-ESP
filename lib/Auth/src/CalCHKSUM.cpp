@@ -3,20 +3,8 @@
 //
 #include "Auth.h"
 #include <Arduino.h>
+#include "InternalHex.h"
 #include "mbedtls/sha1.h"
-
-namespace {
-    String toHexLower(const uint8_t *data, size_t len) {
-        static const char *hex = "0123456789abcdef";
-        String out;
-        out.reserve(len * 2);
-        for (size_t i = 0; i < len; i++) {
-            out += hex[(data[i] >> 4) & 0x0F];
-            out += hex[data[i] & 0x0F];
-        }
-        return out;
-    }
-}
 
 
 namespace Auth {
@@ -52,7 +40,7 @@ namespace Auth {
         uint8_t shaOut[20];
         mbedtls_sha1((const unsigned char *) chkstr.c_str(), chkstr.length(), shaOut);
 
-        return toHexLower(shaOut, 20);
+        return AuthInternal::toHexLower(shaOut, 20);
     }
 }
 
