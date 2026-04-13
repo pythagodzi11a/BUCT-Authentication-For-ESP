@@ -13,10 +13,10 @@ unsigned long lastCheckMs = 0;
 const unsigned long checkIntervalMs = 30000; // 30s
 
 void ensureWiFi() {
-    if (WiFi.status() == WL_CONNECTED) return;
+    if (WiFiClass::status() == WL_CONNECTED) return;
     WiFi.begin(ssid, password);
-    unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+    const unsigned long start = millis();
+    while (WiFiClass::status() != WL_CONNECTED && millis() - start < 10000) {
         delay(300);
     }
 }
