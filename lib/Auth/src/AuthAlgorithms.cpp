@@ -5,6 +5,9 @@
 #include "Auth.h"
 #include "mbedtls/md.h"
 #include "mbedtls/sha1.h"
+#include <cstring>
+#include <memory>
+#include <new>
 
 namespace {
     String toHexLower(const uint8_t *data, size_t len) {
@@ -18,10 +21,10 @@ namespace {
         return out;
     }
 
-    String srunB64Alphabet = "LVoJPiCN2R8G90yg+hmFHuacZ1OWMnrsSTXkYpUq/3dlbfKwv6xztjI7DeBE45QA";
+    constexpr char srunB64Alphabet[] = "LVoJPiCN2R8G90yg+hmFHuacZ1OWMnrsSTXkYpUq/3dlbfKwv6xztjI7DeBE45QA";
 
     String customBase64(const uint8_t *data, const size_t len) {
-        if (!data || len == 0) return "";
+        if (len == 0) return "";
 
         String out;
         out.reserve(((len + 2) / 3) * 4);
@@ -74,7 +77,7 @@ namespace {
 
         const size_t vCoreLen = (pLen + 3) / 4;
         const size_t vLen = vCoreLen + 1;
-        uint32_t *v = static_cast<uint32_t *>(calloc(vLen, sizeof(uint32_t)));
+        std::unique_ptr<uint32_t[]> v(new (std::nothrow) uint32_t[vLen]());
         if (!v) return nullptr;
 
         for (size_t i = 0, j = 0; j < vCoreLen; i += 4, ++j) {
@@ -87,9 +90,8 @@ namespace {
 
         const size_t kCoreLen = (keyLen + 3) / 4;
         const size_t kLen = (kCoreLen < 4) ? 4 : kCoreLen;
-        uint32_t *kk = static_cast<uint32_t *>(calloc(kLen, sizeof(uint32_t)));
+        std::unique_ptr<uint32_t[]> kk(new (std::nothrow) uint32_t[kLen]());
         if (!kk) {
-            free(v);
             return nullptr;
         }
 
@@ -101,14 +103,15 @@ namespace {
         }
 
         uint32_t n = (uint32_t) (vLen - 1);
-        uint32_t z = v[n], y = v[0];
-        uint32_t c = 0x9E3779B9u;
-        uint32_t d = 0, e, m, pidx;
-        int q = (int) (6 + 52 / (n + 1));
+        uint32_t z = v[n];
+        uint32_t y;
+        uint32_t d = 0, m, pidx;
+        int q = static_cast<int>(6 + 52 / (n + 1));
 
         while (q-- > 0) {
+            constexpr uint32_t c = 0x9E3779B9u;
             d = d + c;
-            e = (d >> 2) & 3u;
+            const uint32_t e = (d >> 2) & 3u;
 
             for (pidx = 0; pidx < n; ++pidx) {
                 y = v[pidx + 1];
@@ -128,10 +131,8 @@ namespace {
         }
 
         outLen = vLen * 4;
-        uint8_t *out = static_cast<uint8_t *>(malloc(outLen));
+        std::unique_ptr<uint8_t[]> out(new (std::nothrow) uint8_t[outLen]);
         if (!out) {
-            free(v);
-            free(kk);
             outLen = 0;
             return nullptr;
         }
@@ -143,9 +144,7 @@ namespace {
             out[i * 4 + 3] = static_cast<uint8_t>((v[i] >> 24) & 0xFFu);
         }
 
-        free(v);
-        free(kk);
-        return out;
+        return out.release();
     }
 }
 
@@ -158,8 +157,8 @@ namespace Auth {
 
         int ret = mbedtls_md_hmac(
                 mdInfo,
-                (const unsigned char *) challenge.c_str(), challenge.length(),
-                (const unsigned char *) plainPassword.c_str(), plainPassword.length(),
+                reinterpret_cast<const unsigned char *>(challenge.c_str()), challenge.length(),
+                reinterpret_cast<const unsigned char *>(plainPassword.c_str()), plainPassword.length(),
                 hmacOut
         );
         if (ret != 0) return "";
@@ -177,7 +176,7 @@ namespace Auth {
         uint8_t *enc = xencodeBytes(plain.c_str(), challenge, encLen);
         if (!enc || encLen == 0) return "";
 
-        String b64 = customBase64(enc, encLen);
+        const String b64 = customBase64(enc, encLen);
         free(enc);
 
         return "{SRBX1}" + b64;
@@ -211,7 +210,7 @@ namespace Auth {
         chkstr += info;
 
         uint8_t shaOut[20];
-        mbedtls_sha1((const unsigned char *) chkstr.c_str(), chkstr.length(), shaOut);
+        mbedtls_sha1(reinterpret_cast<const unsigned char *>(chkstr.c_str()), chkstr.length(), shaOut);
 
         return toHexLower(shaOut, 20);
     }

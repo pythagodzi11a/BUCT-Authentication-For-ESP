@@ -42,7 +42,7 @@ namespace {
         const int n = snprintf(target_url, sizeof(target_url),
                                "/cgi-bin/get_challenge?username=%s&ip=%s&callback=%s&_=%s",
                                usernameEnc.c_str(), ip.c_str(), ts.c_str(), ts.c_str());
-        if (n < 0 || n >= (int) sizeof(target_url)) return "";
+        if (n < 0 || n >= static_cast<int>(sizeof(target_url))) return "";
         client.get(target_url);
 
         String response = client.responseBody();
@@ -92,7 +92,7 @@ namespace {
                                loginPathFormat,
                                "callback", usernameEnc.c_str(), passwordEnc.c_str(), ip.c_str(), chksum.c_str(),
                                infoEnc.c_str(), osEnc.c_str(), nameEnc.c_str(), ts.c_str());
-        if (n < 0 || n >= (int) sizeof(target_url)) {
+        if (n < 0 || n >= static_cast<int>(sizeof(target_url))) {
             return std::make_pair(false, "URL too long");
         }
 
