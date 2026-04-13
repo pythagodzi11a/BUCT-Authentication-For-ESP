@@ -20,11 +20,9 @@ namespace Auth {
 }
 
 namespace {
-    /**
-     *
-     * @param target_url 传入要解JSONP的字符串，解出JSON后会覆盖原字符串。
-     * @return bool 是否成功解出JSON
-     */
+    WiFiClient tcpClient;
+    HttpClient client(tcpClient, BASE_URL, 80);
+
     bool extractJson(String &target_url) {
         const int startIndex = target_url.indexOf("{");
         const int endIndex = target_url.lastIndexOf("}");
@@ -45,9 +43,9 @@ namespace {
                                "/cgi-bin/get_challenge?username=%s&ip=%s&callback=%s&_=%s",
                                usernameEnc.c_str(), ip.c_str(), ts.c_str(), ts.c_str());
         if (n < 0 || n >= (int) sizeof(target_url)) return "";
-        Auth::client.get(target_url);
+        client.get(target_url);
 
-        String response = Auth::client.responseBody();
+        String response = client.responseBody();
         if (!extractJson(response)) return "";
 
         JsonDocument json;
@@ -98,8 +96,8 @@ namespace {
             return std::make_pair(false, "URL too long");
         }
 
-        Auth::client.get(target_url);
-        String response = Auth::client.responseBody();
+        client.get(target_url);
+        String response = client.responseBody();
         if (extractJson(response)) {
             JsonDocument json;
             const DeserializationError error = deserializeJson(json, response);
@@ -125,9 +123,6 @@ namespace {
 }
 
 namespace Auth {
-    WiFiClient tcpClient;
-    HttpClient client(tcpClient, BASE_URL, 80);
-
     std::pair<bool, String> login(const String &username,
                                   const String &password,
                                   const String &system) {
@@ -179,14 +174,7 @@ namespace Auth {
         Serial.print("Response: ");
         Serial.println(response);
 
-        // const int startIndex = response.indexOf("{");
-        // const int endIndex = response.indexOf("}");
-
         if (extractJson(response)) {
-            // const String jsonString = response.substring(startIndex, endIndex + 1);
-            // Serial.print("Extracted JSON: ");
-            // Serial.println(jsonString);
-
             JsonDocument json;
             const DeserializationError error = deserializeJson(json, response);
             if (error) {

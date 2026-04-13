@@ -10,8 +10,6 @@
 #define BASE_URL_IP "202.4.130.95"
 
 namespace Auth {
-    extern WiFiClient tcpClient;
-    extern HttpClient client;
 
     std::pair<bool, String> isOnline();
 
