@@ -10,7 +10,7 @@ const char *portalPass = "";
 
 
 unsigned long lastCheckMs = 0;
-const unsigned long checkIntervalMs = 30000; // 30s
+constexpr unsigned long checkIntervalMs = 30000; // 30s
 
 void ensureWiFi() {
     if (WiFiClass::status() == WL_CONNECTED) return;
