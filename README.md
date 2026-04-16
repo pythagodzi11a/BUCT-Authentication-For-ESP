@@ -20,3 +20,7 @@ rt,用esp32或者8266进行校园网认证。
 ssid是wifi的名称，password是wifi密码，portalUser是学号，portalPass是校园网密码。
 
 有空再完善吧。
+
+---
+
+License: MIT. See `LICENSE`.

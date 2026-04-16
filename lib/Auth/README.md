@@ -12,3 +12,6 @@
 - `std::pair<bool, String> login(const String &username,
                                   const String &password,
                                   const String &system = "Windows 95");`：进行认证，参数分别是用户名、密码和系统类型（默认是Windows 95）。返回值是一个pair，第一个元素表示认证是否成功，第二个元素是服务器返回的消息。
+
+# License
+- MIT（见仓库根目录 `LICENSE`）
